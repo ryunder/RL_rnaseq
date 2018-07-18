@@ -1,0 +1,139 @@
+---
+title: "RL RNA-seq"
+output: html_notebook
+---
+
+#install packages and load libraries
+```{r eval=FALSE}
+source("https://bioconductor.org/biocLite.R")
+biocLite()
+biocLite("edgeR")
+biocLite("limma")
+library(edgeR)
+library(limma)
+```
+
+#load files
+```{r}
+files <- c("S01_N2_L2_15_mk", "S02_N2_L2_15_nd", "S03_N2_L2_15_np", "S04_N2_L2_20_mk",
+           "S05_N2_L2_20_nd", "S06_N2_L2_20_np", "S07_N2_L4_15_mk", "S08_N2_L4_15_nd",
+           "S09_N2_L4_15_np", "S10_N2_L4_20_mk", "S11_N2_L4_20_nd", "S12_N2_L4_20_np",
+           "S13_N2_L4_25_mk", "S14_N2_L4_25_nd", "S15_N2_L4_25_np")
+files <- paste(files, "_htseq-count.txt", sep = "")
+table <- read.table(files[1], col.names = c("WBGeneID", "count"))
+head(table)
+dim(table)
+```
+#Create DGElist with count data. Follow up with data check.
+note: `readDGE()` is used for multiple files like here. If all data is contained in a single matrix (or other) file then use the `DGEList()`
+```{r}
+x <- readDGE(files)
+class(x)
+dim(x)
+head(x$samples)
+head(x$counts)
+```
+#Organize sample data 
+```{r}
+temp <- as.factor(c(rep("15C",3),rep("20C",3),rep("15C",3),rep("20C",3),rep("25C",3)))
+x$samples$temp <- temp
+stage <- as.factor(c(rep("L2",6),rep("L4",9)))
+x$samples$stage <- stage
+treatment <- as.factor(rep(c("mock","parisii","displodere"),5))
+x$samples$group <- treatment
+head(x$samples)
+```
+#Data pre-processing - converting data from raw counts.
+```{r}
+cpm <- cpm(x)
+lcpm <- cpm(x, log=T)
+```
+
+#Identify genes that are lowly expressed. 
+This expression will identify genes that have ZERO reads across all samples. In our case its ~40% of all genes.
+```{r}
+table(rowSums(x$counts==0)==15) 
+#Values returned: FALSE=20942 TRUE=25801
+```
+
+#Remove genes that are lowly expressed. 
+We set our threshold to cpm>1 in at least one sample due to our limitation of one replicate. Remember that cpm is a function of library size, so the raw read count threshold is unique per sample. Following this action, we will reduce our total genes down significantly, and the library sizes will change as well.
+```{r}
+keep.exprs <- rowSums(cpm>1)>=1
+x <- x[keep.exprs,, keep.lib.sizes=F]
+dim(x)
+```
+#Density plot showing pre-filtered vs filtered data.
+```{r}
+library(RColorBrewer)
+nsamples <- ncol(x)
+col <- brewer.pal(nsamples, "Set3")
+par(mfrow=c(1,2))
+plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
+title(main="A. Raw data", xlab="log-cpm")
+abline(v=0, lty=3)
+for (i in 2:nsamples) {
+  den <- density(lcpm[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+legend("topright", row.names(x$samples), text.col=col, bty="n")
+lcpm <- cpm(x,log=T)
+plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
+title(main="B. Filtered data", xlab="log-cpm")
+abline(v=0, lty=3)
+for (i in 2:nsamples) {
+  den <- density(lcpm[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+legend("topright", rownames(x$samples), text.col = col, bty = "n")
+```
+
+#Normalization
+```{r}
+x <- calcNormFactors(x, method = "TMM")
+x$samples$norm.factors
+```
+
+#Unsupervised clustering
+```{r}
+col.1 <- treatment
+char.1 <- treatment
+col.2 <- stage
+char.2 <- stage
+col.3 <- temp
+char.3 <- temp
+
+samplesnames <- rownames(x$samples)
+samplesnames <- substring(samplesnames,8,15)
+
+levels(col.1) <- brewer.pal(nlevels(col.1), "Set1")
+col.1 <- as.character(col.1)
+levels(char.1) <- c(0:nlevels(char.1))
+
+levels(col.2) <- brewer.pal(nlevels(col.2), "Set2")
+col.2 <- as.character(col.2)
+levels(char.2) <- c(0:nlevels(char.2))
+
+levels(col.3) <- brewer.pal(nlevels(col.3), "Dark2")
+col.3 <- as.character(col.3)
+levels(char.3) <- c(0:nlevels(char.3))
+
+lcpm <- cpm(x,log=T)
+par(mfrow=c(1,2))
+
+plotMDS(lcpm, labels=samplesnames, col=col.1, cex=0.66)
+title(main = "Treatment")
+plotMDS(lcpm, labels=samplesnames, col=col.1, cex=0.66, dim=c(3,4))
+title(main = "Treatment")
+
+plotMDS(lcpm, labels=samplesnames, col=col.2, cex=0.66)
+title(main = "Stage")
+plotMDS(lcpm, labels=samplesnames, col=col.2, cex=0.66, dim=c(3,4))
+title(main = "Stage")
+
+plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66)
+title(main = "Temp")
+plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66, dim=c(3,4))
+title(main = "Temp")
+```
+

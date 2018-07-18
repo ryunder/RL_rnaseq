@@ -1,36 +1,44 @@
 # History files
 .Rhistory
 .Rapp.history
-
 # Session Data files
 .RData
-
 # Example code in package build process
 *-Ex.R
-
 # Output files from R CMD build
 /*.tar.gz
-
 # Output files from R CMD check
 /*.Rcheck/
-
 # RStudio files
 .Rproj.user/
-
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
-
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
-
 # knitr and R markdown default cache directories
 /*_cache/
 /cache/
-
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
-
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+.Rproj.user
+S01_N2_L2_15_mk_htseq-count.txt
+all_worm_FPKM_genes.tsv
+S02_N2_L2_15_nd_htseq-count.txt
+S03_N2_L2_15_np_htseq-count.txt
+S04_N2_L2_20_mk_htseq-count.txt
+S05_N2_L2_20_nd_htseq-count.txt
+S06_N2_L2_20_np_htseq-count.txt
+S07_N2_L4_15_mk_htseq-count.txt
+S08_N2_L4_15_nd_htseq-count.txt
+S09_N2_L4_15_np_htseq-count.txt
+S10_N2_L4_20_mk_htseq-count.txt
+S11_N2_L4_20_nd_htseq-count.txt
+S12_N2_L4_20_np_htseq-count.txt
+S13_N2_L4_25_mk_htseq-count.txt
+S14_N2_L4_25_nd_htseq-count.txt
+S15_N2_L4_25_np_htseq-count.txt
+nematocida.counts.matrix
