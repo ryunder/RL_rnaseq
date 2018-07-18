@@ -5,10 +5,10 @@ output: html_notebook
 
 #install packages and load libraries
 ```{r eval=FALSE}
-source("https://bioconductor.org/biocLite.R")
-biocLite()
-biocLite("edgeR")
-biocLite("limma")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite()
+#biocLite("edgeR")
+#biocLite("limma")
 library(edgeR)
 library(limma)
 ```
@@ -24,6 +24,7 @@ table <- read.table(files[1], col.names = c("WBGeneID", "count"))
 head(table)
 dim(table)
 ```
+
 #Create DGElist with count data. Follow up with data check.
 note: `readDGE()` is used for multiple files like here. If all data is contained in a single matrix (or other) file then use the `DGEList()`
 ```{r}
@@ -33,6 +34,20 @@ dim(x)
 head(x$samples)
 head(x$counts)
 ```
+#We will also load matrix file for N. parisii + N. ausebeli + N2 untreated RNA-seq data.
+These data were obtained in biological triplicates. I am going to load them into a seperate DGEList object since, at the moment, I am not sure if it is correct to analyze the data sets simultaneously.
+Additionally, since the transcripts in this file are labelled with common names or locus IDs, it is difficult to match with the other data labelled with WBGene IDs. This is potentially something that can be solved during mapping.
+```{r}
+files2 <- read.csv("nematocida.counts.matrix", stringsAsFactors = F, check.names = F)
+count_matrix <- as.matrix(files2[,-1])
+rownames(count_matrix) <- files2[,1]
+head(count_matrix)
+x2 <- DGEList(counts = count_matrix)
+class(x2)
+head(x2$counts)
+x2$samples
+```
+
 #Organize sample data 
 ```{r}
 temp <- as.factor(c(rep("15C",3),rep("20C",3),rep("15C",3),rep("20C",3),rep("25C",3)))
@@ -42,6 +57,14 @@ x$samples$stage <- stage
 treatment <- as.factor(rep(c("mock","parisii","displodere"),5))
 x$samples$group <- treatment
 head(x$samples)
+
+#########
+
+treatment <- as.factor(c(rep(c("mock", "parisii", "ausubeli"),3),"parisii", "mock", "ausubeli"))
+x2$samples$group <- treatment
+lane <- as.factor(c(rep("L004",9),rep("L007",3)))
+x2$samples$lane <- lane
+head(x2$samples)
 ```
 #Data pre-processing - converting data from raw counts.
 ```{r}
@@ -50,14 +73,14 @@ lcpm <- cpm(x, log=T)
 ```
 
 #Identify genes that are lowly expressed. 
-This expression will identify genes that have ZERO reads across all samples. In our case its ~40% of all genes.
+This expression will show genes that have ZERO reads across all samples. In our case its ~60% of all genes.
 ```{r}
 table(rowSums(x$counts==0)==15) 
 #Values returned: FALSE=20942 TRUE=25801
 ```
 
 #Remove genes that are lowly expressed. 
-We set our threshold to cpm>1 in at least one sample due to our limitation of one replicate. Remember that cpm is a function of library size, so the raw read count threshold is unique per sample. Following this action, we will reduce our total genes down significantly, and the library sizes will change as well.
+We set our threshold to cpm>1 in at least one sample due to our limitation of one replicate. Remember that cpm is dependent on library size, so the raw read count threshold will be unique for each sample. Following this action, we will reduce our total genes down significantly, and the library sizes will change as well.
 ```{r}
 keep.exprs <- rowSums(cpm>1)>=1
 x <- x[keep.exprs,, keep.lib.sizes=F]
@@ -89,6 +112,7 @@ legend("topright", rownames(x$samples), text.col = col, bty = "n")
 ```
 
 #Normalization
+This normalization weights the samples based on library size
 ```{r}
 x <- calcNormFactors(x, method = "TMM")
 x$samples$norm.factors
@@ -97,26 +121,20 @@ x$samples$norm.factors
 #Unsupervised clustering
 ```{r}
 col.1 <- treatment
-char.1 <- treatment
 col.2 <- stage
-char.2 <- stage
 col.3 <- temp
-char.3 <- temp
 
 samplesnames <- rownames(x$samples)
 samplesnames <- substring(samplesnames,8,15)
 
 levels(col.1) <- brewer.pal(nlevels(col.1), "Set1")
 col.1 <- as.character(col.1)
-levels(char.1) <- c(0:nlevels(char.1))
 
 levels(col.2) <- brewer.pal(nlevels(col.2), "Set2")
 col.2 <- as.character(col.2)
-levels(char.2) <- c(0:nlevels(char.2))
 
 levels(col.3) <- brewer.pal(nlevels(col.3), "Dark2")
 col.3 <- as.character(col.3)
-levels(char.3) <- c(0:nlevels(char.3))
 
 lcpm <- cpm(x,log=T)
 par(mfrow=c(1,2))
@@ -135,5 +153,13 @@ plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66)
 title(main = "Temp")
 plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66, dim=c(3,4))
 title(main = "Temp")
+```
+
+```{r}
+design <- model.matrix(~0+treatment+stage+temp)
+colnames(design) <- gsub("treatment","",colnames(design))
+colnames(design) <- gsub("temp","",colnames(design))
+colnames(design) <- gsub("stage","",colnames(design))
+design
 ```
 
