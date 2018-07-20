@@ -53,10 +53,13 @@ x2$samples
 #Organize sample data 
 ```{r}
 temp <- as.factor(c(rep("x15C",3),rep("x20C",3),rep("x15C",3),rep("x20C",3),rep("x25C",3)))
+temp <- relevel(temp, ref = "x20C")
 x$samples$temp <- temp
 stage <- as.factor(c(rep("L2",6),rep("L4",9)))
+stage <- relevel(stage, ref="L4")
 x$samples$stage <- stage
 treatment <- as.factor(rep(c("mock","parisii","displodere"),5))
+treatment <- relevel(treatment, ref="mock")
 x$samples$group <- treatment
 head(x$samples)
 
@@ -265,5 +268,41 @@ df <- glmLRT(fit, contrast = contrast.matrix)
 topTags(df, n=30, sort.by = "logFC")
 summary(decideTests(df))
 plotMD(df)
+```
+#This method is adapted from the edgeR User Guide 3.5
+```{r}
+design <- model.matrix(~treatment+treatment:stage+treatment:temp)
+colnames(design)
+
+x<-estimateDisp(x,design,robust=T)
+fit<- glmQLFit(x,design)
+```
+#Genes differentially expressed in "mock" treated animals L2 compared to L4
+```{r}
+qlf <- glmQLFTest(fit, coef = "treatmentmock:stageL2")
+summary(decideTests(qlf))
+topTags(qlf, n=Inf, sort.by = "logFC")
+```
+The top hits by absolute logFC is WBGene00003435, WBGene00022754. WBGene00044058 has a large positive logFC. Use these three genes for a sanity check, make sure the raw count data performs as expected. 
+```{r}
+x$counts["WBGene00003435",]
+x$counts["WBGene00022754",]
+x$counts["WBGene00044058",]
+```
+Genes that respond to disp. at any temp or stage compared to mock+parisii
+```{r}
+qlf <- glmQLFTest(fit, coef = 2)
+topTags(qlf, n=Inf, sort.by = "logFC")
+summary(decideTests(qlf))
+```
+sanity check again
+```{r}
+x$counts["WBGene00044237",]
+x$counts["WBGene00010821",]
+x$counts["WBGene00013130",]
+```
+
+```{r}
+qlf <- glmQLFTest(fit, coef=c())
 ```
 
