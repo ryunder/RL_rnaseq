@@ -269,7 +269,7 @@ topTags(df, n=30, sort.by = "logFC")
 summary(decideTests(df))
 plotMD(df)
 ```
-#This method is adapted from the edgeR User Guide 3.5
+#This method is adapted from the edgeR User Guide 3.5. 
 ```{r}
 design <- model.matrix(~treatment+treatment:stage+treatment:temp)
 colnames(design)
@@ -281,7 +281,7 @@ fit<- glmQLFit(x,design)
 ```{r}
 qlf <- glmQLFTest(fit, coef = "treatmentmock:stageL2")
 summary(decideTests(qlf))
-topTags(qlf, n=Inf, sort.by = "logFC")
+topTags(qlf, n=50, sort.by = "logFC")
 ```
 The top hits by absolute logFC is WBGene00003435, WBGene00022754. WBGene00044058 has a large positive logFC. Use these three genes for a sanity check, make sure the raw count data performs as expected. 
 ```{r}
@@ -289,20 +289,53 @@ x$counts["WBGene00003435",]
 x$counts["WBGene00022754",]
 x$counts["WBGene00044058",]
 ```
-Genes that respond to disp. at any temp or stage compared to mock+parisii
+Genes that respond to disp. at ANY temp or stage compared to mock
 ```{r}
-qlf <- glmQLFTest(fit, coef = 2)
-topTags(qlf, n=Inf, sort.by = "logFC")
+qlf <- glmQLFTest(fit, coef = c(5,8,11))
+topTags(qlf, n=50, sort.by = "PValue")
 summary(decideTests(qlf))
 ```
 sanity check again
 ```{r}
-x$counts["WBGene00044237",]
-x$counts["WBGene00010821",]
-x$counts["WBGene00013130",]
+x$counts["WBGene00016541",]
+x$counts["WBGene00014158",]
+x$counts["WBGene00010516",]
+```
+Compare disp at 15 to disp at 20
+```{r}
+qlf <- glmQLFTest(fit, coef = 8)
+topTags(qlf, n=50, sort.by = "logFC")
+summary(decideTests(qlf))
+```
+#Compare dispoldere to parisii, not this is across all stages and temps
+```{r}
+qlf <- glmQLFTest(fit, contrast = c(0,1,-1,0,0,0,0,0,0,0,0,0))
+topTags(qlf, n=50, sort.by = "logFC")
+summary(decideTests(qlf))
 ```
 
 ```{r}
-qlf <- glmQLFTest(fit, coef=c())
+qlf <- glmQLFTest(fit,coef = c(5,8,11))
+topTags(qlf, sort.by = "logFC")
+summary(decideTests(qlf))
+```
+Alternative experiment design
+```{r}
+group <- factor(make.names(treatment:stage:temp))
+design <- model.matrix(~0+group)
+colnames(design)
+
+contrast.matrix <- makeContrasts(disp.L4.20 = groupdisplodere.L4.x20C - groupmock.L4.x20C,
+                                 disp.L2.20 = groupdisplodere.L2.x20C - groupmock.L2.x20C,
+                                 pari.L4.20 = groupparisii.L4.x20C - groupmock.L4.x20C,
+                                 pari.L2.20 = groupparisii.L2.x20C - groupmock.L2.x20C,
+                                 dispvpari.L4.25 = groupdisplodere.L4.x25C - groupparisii.L4.x25C,
+                                 levels = design
+)
+
+fit<- glmFit(x,design,dispersion = bcv^2)
+lrt <- glmLRT(fit, contrast = contrast.matrix[,5])
+topTags(lrt)
+summary(decideTests(lrt))
 ```
 
