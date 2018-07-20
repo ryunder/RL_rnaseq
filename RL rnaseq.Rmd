@@ -9,6 +9,8 @@ output: html_notebook
 #biocLite()
 #biocLite("edgeR")
 #biocLite("limma")
+install.packages("statmod")
+library(statmod)
 library(edgeR)
 library(limma)
 ```
@@ -35,7 +37,7 @@ head(x$samples)
 head(x$counts)
 ```
 #We will also load matrix file for N. parisii + N. ausebeli + N2 untreated RNA-seq data.
-These data were obtained in biological triplicates. I am going to load them into a seperate DGEList object since, at the moment, I am not sure if it is correct to analyze the data sets simultaneously.
+These data were obtained in biological quadlicate (tetracate?) I am going to load them into a seperate DGEList object since, at the moment, I am not sure if it is proper to analyze the data sets simultaneously.
 Additionally, since the transcripts in this file are labelled with common names or locus IDs, it is difficult to match with the other data labelled with WBGene IDs. This is potentially something that can be solved during mapping.
 ```{r}
 files2 <- read.csv("nematocida.counts.matrix", stringsAsFactors = F, check.names = F)
@@ -50,7 +52,7 @@ x2$samples
 
 #Organize sample data 
 ```{r}
-temp <- as.factor(c(rep("15C",3),rep("20C",3),rep("15C",3),rep("20C",3),rep("25C",3)))
+temp <- as.factor(c(rep("x15C",3),rep("x20C",3),rep("x15C",3),rep("x20C",3),rep("x25C",3)))
 x$samples$temp <- temp
 stage <- as.factor(c(rep("L2",6),rep("L4",9)))
 x$samples$stage <- stage
@@ -60,8 +62,8 @@ head(x$samples)
 
 #########
 
-treatment <- as.factor(c(rep(c("mock", "parisii", "ausubeli"),3),"parisii", "mock", "ausubeli"))
-x2$samples$group <- treatment
+treatment2 <- as.factor(c(rep(c("mock", "parisii", "ausubeli"),3),"parisii", "mock", "ausubeli"))
+x2$samples$group <- treatment2
 lane <- as.factor(c(rep("L004",9),rep("L007",3)))
 x2$samples$lane <- lane
 head(x2$samples)
@@ -70,6 +72,11 @@ head(x2$samples)
 ```{r}
 cpm <- cpm(x)
 lcpm <- cpm(x, log=T)
+
+#############
+
+cpm2 <- cpm(x2)
+lcpm2 <- cpm(x2, log=T)
 ```
 
 #Identify genes that are lowly expressed. 
@@ -77,6 +84,9 @@ This expression will show genes that have ZERO reads across all samples. In our 
 ```{r}
 table(rowSums(x$counts==0)==15) 
 #Values returned: FALSE=20942 TRUE=25801
+
+table(rowSums(x2$counts==0)==16)
+#201535=False
 ```
 
 #Remove genes that are lowly expressed. 
@@ -85,6 +95,11 @@ We set our threshold to cpm>1 in at least one sample due to our limitation of on
 keep.exprs <- rowSums(cpm>1)>=1
 x <- x[keep.exprs,, keep.lib.sizes=F]
 dim(x)
+
+##################
+
+keep.exprs <- rowSums(cpm2>1)>=4
+x2 <- x2[keep.exprs,, keep.lib.sizes=F]
 ```
 #Density plot showing pre-filtered vs filtered data.
 ```{r}
@@ -93,29 +108,56 @@ nsamples <- ncol(x)
 col <- brewer.pal(nsamples, "Set3")
 par(mfrow=c(1,2))
 plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
-title(main="A. Raw data", xlab="log-cpm")
+title(main="Raw data", xlab="log-cpm")
 abline(v=0, lty=3)
 for (i in 2:nsamples) {
   den <- density(lcpm[,i])
   lines(den$x, den$y, col=col[i], lwd=2)
 }
-legend("topright", row.names(x$samples), text.col=col, bty="n")
+#legend("topright", row.names(x$samples), text.col=col, bty="n")
 lcpm <- cpm(x,log=T)
 plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
-title(main="B. Filtered data", xlab="log-cpm")
+title(main="Filtered data", xlab="log-cpm")
 abline(v=0, lty=3)
 for (i in 2:nsamples) {
   den <- density(lcpm[,i])
   lines(den$x, den$y, col=col[i], lwd=2)
 }
-legend("topright", rownames(x$samples), text.col = col, bty = "n")
+#legend("topright", rownames(x$samples), text.col = col, bty = "n")
+
+##########################
+
+library(RColorBrewer)
+nsamples <- ncol(x2)
+par(mfrow=c(1,2))
+plot(density(lcpm2[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
+title(main="Raw data", xlab="log-cpm")
+abline(v=0, lty=3)
+for (i in 2:nsamples) {
+  den <- density(lcpm2[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+#legend("topright", row.names(x2$samples), text.col=col, bty="n")
+lcpm2 <- cpm(x2,log=T)
+plot(density(lcpm2[,1]), col=col[1], lwd=2, ylim=c(0,0.21), las=2, main="", xlab="")
+title(main="Filtered data", xlab="log-cpm")
+abline(v=0, lty=3)
+for (i in 2:nsamples) {
+  den <- density(lcpm2[,i])
+  lines(den$x, den$y, col=col[i], lwd=2)
+}
+#legend("topright", rownames(x2$samples), text.col = col, bty = "n")
 ```
 
 #Normalization
-This normalization weights the samples based on library size
+This normalization weights the samples based on library size. "TMM normalization is performed to eliminate composition bias between libraries."
 ```{r}
 x <- calcNormFactors(x, method = "TMM")
 x$samples$norm.factors
+
+######################
+x2 <- calcNormFactors(x2, method="TMM")
+x2$samples$norm.factors
 ```
 
 #Unsupervised clustering
@@ -140,19 +182,42 @@ lcpm <- cpm(x,log=T)
 par(mfrow=c(1,2))
 
 plotMDS(lcpm, labels=samplesnames, col=col.1, cex=0.66)
-title(main = "Treatment")
+title(main = "x1. Treatment")
 plotMDS(lcpm, labels=samplesnames, col=col.1, cex=0.66, dim=c(3,4))
-title(main = "Treatment")
+title(main = "x1. Treatment")
 
 plotMDS(lcpm, labels=samplesnames, col=col.2, cex=0.66)
-title(main = "Stage")
+title(main = "x1. Stage")
 plotMDS(lcpm, labels=samplesnames, col=col.2, cex=0.66, dim=c(3,4))
-title(main = "Stage")
+title(main = "x1. Stage")
 
 plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66)
-title(main = "Temp")
+title(main = "x1. Temp")
 plotMDS(lcpm, labels=samplesnames, col=col.3, cex=0.66, dim=c(3,4))
-title(main = "Temp")
+title(main = "x1. Temp")
+
+########################
+
+col.1 <- x2$samples$group
+col.2 <- x2$samples$lane
+
+levels(col.1) <- brewer.pal(nlevels(col.1), "Set1")
+col.1 <- as.character(col.1)
+
+levels(col.2) <- brewer.pal(nlevels(col.2), "Set2")
+col.2 <- as.character(col.2)
+
+plotMDS(lcpm2, labels = x2$samples$group, col=col.1, cex=0.66)
+title(main="x2. Treatment")
+
+plotMDS(lcpm2, labels = x2$samples$group, col=col.1, cex=0.66, dim=c(3,4))
+title(main="x2. Treatment")
+
+plotMDS(lcpm2, labels = x2$samples$lane, col=col.2, cex=0.66)
+title(main = "x2. Lane")
+
+plotMDS(lcpm2, labels = x2$samples$lane, col=col.2, cex=0.66, dim=c(3,4))
+title(main = "x2. Lane")
 ```
 
 ```{r}
@@ -161,5 +226,44 @@ colnames(design) <- gsub("treatment","",colnames(design))
 colnames(design) <- gsub("temp","",colnames(design))
 colnames(design) <- gsub("stage","",colnames(design))
 design
+
+##################
+
+design2 <- model.matrix(~0+treatment2+lane)
+colnames(design2) <- gsub("treatment2","",colnames(design2))
+design2
+```
+
+#Estimate dispersion
+This is a critical juncture for analyzing RNA-seq with no biological replicates. Disperion is essentially the estimated biological variation. Without replicates, dispersion cannot be estimated and must be manually entered. For more information, read the edgeR User Guide, section 2.11. 
+For our purposes, since we have the other data with replicates, I will calculate dispersion using those data and use that value. An alternative option, is to look at the MDS plots above, find closely clustered samples, and pretend those are replicates in order to estimate dispersion.
+```{r}
+x2 <- estimateDisp(x2, design2, robust = T)
+x$common.dispersion <- x2$common.dispersion
+plotBCV(x2)
+#bcv
+```
+
+```{r}
+fit <- glmFit(x, design)
+################
+fit2 <- glmFit(x2, design2)
+
+head(fit$coefficients)
+head(fit2$coefficients)
+```
+#Make contrasts
+```{r}
+contrast.matrix <- makeContrasts(ndvnp = displodere - parisii, levels = design)
+contrast.matrix2 <- makeContrasts(Navmk = ausubeli - mock, 
+                                  Npvmk = parisii - mock, 
+                                  NavNp = ausubeli - parisii, 
+                                  levels = design2)
+
+df <- glmLRT(fit, contrast = contrast.matrix)
+
+topTags(df, n=30, sort.by = "logFC")
+summary(decideTests(df))
+plotMD(df)
 ```
 
