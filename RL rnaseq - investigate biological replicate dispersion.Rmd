@@ -1,0 +1,120 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Introduction
+The goal here is to use the biological replicates of the N2, N. parisii, and N. ausubeli experiments to attempt to understand the biological variability of gene counts. I will do this by comparing biological replicates against themselves, N2 sample 1 compared to N2 sample 2 for example, in order to develop lists of genes that are "differentially experssed" within biological replicates. Ultimately, the goal is to develope a qualitative set of filters that we can use to identify genes of interest in the experiments that make use of single replicates.
+
+#Step 1 - load data
+```{r}
+files2 <- read.csv("nematocida.counts.matrix", stringsAsFactors = F, check.names = F)
+count_matrix <- as.matrix(files2[,-1])
+rownames(count_matrix) <- files2[,1]
+head(count_matrix)
+x3 <- DGEList(counts = count_matrix)
+class(x3)
+head(x3$counts)
+x3$samples
+```
+
+#Step 2 - organize data
+Normally, data would be grouped by experimental factors, ie strain or treatment or temperature, here however, I am placing each sample into its own individual group.
+```{r}
+group <- as.factor(1:12)
+x3$samples$group <- group 
+dim(x3)
+x3$samples
+```
+
+#Step 3 - data pre-processing
+Remove genes with low counts. TMM normalization
+```{r}
+cpm3 <- cpm(x3)
+keep.exprs <- rowSums(cpm3>1)>=1
+x3 <- x3[keep.exprs,, keep.lib.sizes=F]
+
+dim(x3)
+x3 <- calcNormFactors(x3, method = "TMM")
+x3$samples$norm.factors
+
+bcv <- 0.02
+```
+
+#Step 4 - experiment design and contrast matrix construction
+I am skipping several steps here, including unsuperivised clustering analysis.
+```{r eval=F}
+design.matrix <- model.matrix(~0+group)
+colnames(design.matrix) <- substring(colnames(design.matrix), 12, nchar(colnames(design.matrix)))
+colnames(design.matrix) <- gsub("-","",colnames(design.matrix))
+contrast.matrix <- makeContrasts(N2.1 = N2_S1_L004 - N2_S6_L004,
+                                 N2.2 = N2_S1_L004 - N2_S15_L004,
+                                 N2.3 = N2_S6_L004 - N2_S15_L004,
+                                 np.1 = N2ERTm1_S4_L004 - N2ERTm1_S9_L004,
+                                 np.2 = N2ERTm1_S4_L004 - N2ERTm1_S18_L004,
+                                 np.3 = N2ERTm1_S9_L004 - N2ERTm1_S18_L004,
+                                 na.1 = N2ERTm2_S5_L004 - N2ERTm2_S10_L004,
+                                 na.2 = N2ERTm2_S5_L004 - N2ERTm2_S19_L004,
+                                 na.3 = N2ERTm2_S10_L004 - N2ERTm2_S19_L004, levels=design.matrix)
+```
+#Perform pairwise comparisons
+I am comparing the different conditions using an artificial dispersion coefficient. The p-values and FDR values are nonsensical. IGNORE THEM!
+```{r}
+et <- exactTest(x3, pair = c(1,4), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$mock1 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(1,7), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$mock2 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(4,7), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$mock3 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(2,5), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$np1 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(2,8), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$np2 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(5,8), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$np3 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(3,6), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$nd1 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(3,9), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$nd2 <- et$table$logFC
+```
+
+```{r}
+et <- exactTest(x3, pair = c(6,9), dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+dfnew2$nd3 <- et$table$logFC
+```
+
+```{r}
+head(dfnew2)
+write.csv(dfnew2, file = "2018_07_25_replicate_logFC.csv", quote = F)
+```
+
