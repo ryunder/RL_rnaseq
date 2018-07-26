@@ -275,8 +275,8 @@ plotMD(df)
 design <- model.matrix(~treatment+treatment:stage+treatment:temp)
 colnames(design)
 
-x<-estimateDisp(x,design,robust=T)
-fit<- glmQLFit(x,design)
+x <-estimateDisp(x,design,robust=T)
+fit <- glmQLFit(x,design)
 ```
 #Genes differentially expressed in "mock" treated animals L2 compared to L4
 ```{r}
@@ -308,10 +308,16 @@ qlf <- glmQLFTest(fit, coef = 8)
 topTags(qlf, n=50, sort.by = "logFC")
 summary(decideTests(qlf))
 ```
-#Compare dispoldere to parisii, not this is across all stages and temps
+#Compare dispoldere to parisii, note: this is across all stages and temps
 ```{r}
 qlf <- glmQLFTest(fit, contrast = c(0,1,-1,0,0,0,0,0,0,0,0,0))
 topTags(qlf, n=50, sort.by = "logFC")
+summary(decideTests(qlf))
+```
+#Compare L2 20C disp vs parisii
+```{r eval=F}
+qlf <- glmQLFTest(fit,coef = c)
+topTags(qlf, sort.by = "logFC")
 summary(decideTests(qlf))
 ```
 
@@ -320,6 +326,40 @@ qlf <- glmQLFTest(fit,coef = c(5,8,11))
 topTags(qlf, sort.by = "logFC")
 summary(decideTests(qlf))
 ```
+#Exact Test
+compare two samples without a linear model
+```{r}
+#First, redesign the group parameter to make each sample an individual group
+x$samples$group <- 1:15
+x$samples
+
+#Set bcv
+bcv <- 0.2
+
+# L2 20C disp - N2
+et1 <- exactTest(x, pair = 4:5, dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+df1_name <- "L2.20C"
+
+#L4 25C disp - N2
+et2 <- exactTest(x, pair=13:14, dispersion = bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+df2_name <- "L4.25C"
+
+#L4 20C disp - N2
+et3 <- exactTest(x, pair=10:11, dispersion=bcv^2)
+topTags(et, n=Inf, sort.by = "logFC")
+df3_name <- "L4.20C"
+
+#Generate data frame and print to csv
+logfc.df <- data.frame(et1$table$logFC,et2$table$logFC,et3$table$logFC, 
+                       row.names = rownames(et1$table), stringsAsFactors = F)
+names(logfc.df) <- c(df1_name,df2_name,df3_name)
+head(logfc.df)
+write.csv(logfc.df, file = "2018_07_27_Disp_N2_logFC.csv")
+```
+
+
 Alternative experiment design
 ```{r}
 group <- factor(make.names(treatment:stage:temp))
@@ -334,9 +374,27 @@ contrast.matrix <- makeContrasts(disp.L4.20 = groupdisplodere.L4.x20C - groupmoc
                                  levels = design
 )
 
-fit<- glmFit(x,design,dispersion = bcv^2)
+bcv <- 0.1
+
+fit <- glmFit(x,design,dispersion = bcv^2)
 lrt <- glmLRT(fit, contrast = contrast.matrix[,5])
 topTags(lrt)
 summary(decideTests(lrt))
+```
+
+#Continue linear modeling and comparison of the triplicate data
+```{r}
+v <- voom(x2, design2, plot=T)
+v
+vfit <- lmFit(v, design2)
+vfit <- contrasts.fit(vfit, contrasts = contrast.matrix2)
+efit <- eBayes(vfit)
+plotSA(efit)
+summary(decideTests(efit))
+```
+```{r}
+tops <- topTable(efit, coef = 2, n=Inf, sort.by = "logFC", p.value = 0.05)
+tops
+#write.csv(tops, "2018_07_27_parisii_topgenes.csv")
 ```
 
