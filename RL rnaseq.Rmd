@@ -52,10 +52,11 @@ x2$samples
 
 #Organize sample data 
 ```{r}
-temp <- as.factor(c(rep("x15C",3),rep("x20C",3),rep("x15C",3),rep("x20C",3),rep("x25C",3)))
+#temp <- as.factor(c(rep("x15C",3),rep("x20C",3),rep("x15C",3),rep("x20C",3),rep("x25C",3)))
+temp <- as.factor(rep(c("x15C", "x20C", "x15C", "x20C", "x25C"), c(3,3,3,3,3)))
 temp <- relevel(temp, ref = "x20C")
 x$samples$temp <- temp
-stage <- as.factor(c(rep("L2",6),rep("L4",9)))
+stage <- as.factor(rep(c("L2","L4"),c(6,9)))
 stage <- relevel(stage, ref="L4")
 x$samples$stage <- stage
 treatment <- as.factor(rep(c("mock","parisii","displodere"),5))
