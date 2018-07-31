@@ -56,10 +56,10 @@ x2$samples
 temp <- as.factor(rep(c("x15C", "x20C", "x15C", "x20C", "x25C"), c(3,3,3,3,3)))
 temp <- relevel(temp, ref = "x20C")
 x$samples$temp <- temp
-stage <- as.factor(rep(c("L2","L4"),c(6,9)))
+stage <- as.factor(rep(c("L2","L4"), c(6,9)))
 stage <- relevel(stage, ref="L4")
 x$samples$stage <- stage
-treatment <- as.factor(rep(c("mock","parisii","displodere"),5))
+treatment <- as.factor(rep(c("mock","parisii","displodere"), 5))
 treatment <- relevel(treatment, ref="mock")
 x$samples$group <- treatment
 head(x$samples)
@@ -356,7 +356,7 @@ logfc.df <- data.frame(et1$table$logFC,et2$table$logFC,et3$table$logFC,
                        row.names = rownames(et1$table), stringsAsFactors = F)
 names(logfc.df) <- c(df1_name,df2_name,df3_name)
 head(logfc.df)
-write.csv(logfc.df, file = "2018_07_27_Disp_N2_logFC.csv")
+#write.csv(logfc.df, file = "2018_07_27_Disp_N2_logFC.csv")
 ```
 
 
@@ -396,5 +396,47 @@ summary(decideTests(efit))
 tops <- topTable(efit, coef = 2, n=Inf, sort.by = "logFC", p.value = 0.05)
 tops
 #write.csv(tops, "2018_07_27_parisii_topgenes.csv")
+```
+#Compressed design model
+Here, I am eliminating the stages as a factor and combining 20+25 temp into a single group
+```{r}
+temp <- as.factor(rep(c("x15C", "x20.25C", "x15C", "x20.25C"), c(3,3,3,6)))
+temp <- relevel(temp, ref = "x20.25C")
+x$samples$temp <- temp
+treatment <- as.factor(rep(c("mock","parisii","displodere"), 5))
+treatment <- relevel(treatment, ref="mock")
+x$samples$group <- treatment
+head(x$samples)
+
+design <- model.matrix(~treatment+treatment:temp)
+colnames(design) <- gsub("treatment","",colnames(design))
+colnames(design) <- gsub("temp","",colnames(design))
+colnames(design) <- gsub("stage","",colnames(design))
+design
+```
+#Estimate dispersion and continue with analysis
+```{r}
+x <- estimateDisp(x, design)
+glfit <- glmFit(x, design)
+colnames(glfit)
+
+#displodere - parisii
+lrt <- glmLRT(glfit, coef = 2:3)
+topTags(lrt, n=Inf, p.value = 0.05)
+
+#displodere 20.25 - displodere at 15
+lrt <- glmLRT(glfit, coef = 5)
+topTags(lrt, n=Inf, sort.by = "logFC")
+```
+
+```{r}
+dge.matrix <- as.matrix(x)
+head.matrix(dge.matrix)
+
+dge.matrix.subset <- dge.matrix[c("WBGene00194663", "WBGene00011460", "WBGene00000663", "WBGene00000636", "WBGene00006927", "WBGene00000694", "WBGene00010650", "WBGene00044780", "WBGene00006053", "WBGene00044471") ,c(2,5,8,11,14)]
+
+dge.matrix.subset
+#write.csv(dge.matrix.subset, file = "2018_07_30_displodere_dge.csv", quote = F)
+#WBGene00015225 may be interesting - low in mock, elevated in np and 10x higher in nd
 ```
 
