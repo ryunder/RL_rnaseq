@@ -338,27 +338,61 @@ bcv <- 0.2
 
 # L2 20C disp - N2
 et1 <- exactTest(x, pair = 4:5, dispersion = bcv^2)
-topTags(et, n=Inf, sort.by = "logFC")
+topTags(et1, n=Inf, sort.by = "logFC")
 df1_name <- "L2.20C"
 
 #L4 25C disp - N2
 et2 <- exactTest(x, pair=13:14, dispersion = bcv^2)
-topTags(et, n=Inf, sort.by = "logFC")
+topTags(et2, n=Inf, sort.by = "logFC")
 df2_name <- "L4.25C"
 
 #L4 20C disp - N2
 et3 <- exactTest(x, pair=10:11, dispersion=bcv^2)
-topTags(et, n=Inf, sort.by = "logFC")
+topTags(et3, n=Inf, sort.by = "logFC")
 df3_name <- "L4.20C"
 
+#L2 15C disp - N2
+et4 <- exactTest(x, pair=1:2, dispersion=bcv^2)
+topTags(et4, n=Inf, sort.by = "logFC")
+df4_name <- "L2.15C"
+
+#L4 15C disp - N2
+et5 <- exactTest(x, pair=7:8, dispersion=bcv^2)
+topTags(et5, n=Inf, sort.by = "logFC")
+df5_name <- "L4.15C"
+
 #Generate data frame and print to csv
-logfc.df <- data.frame(et1$table$logFC,et2$table$logFC,et3$table$logFC, 
+logfc.df <- data.frame(et1$table$logFC,et2$table$logFC,et3$table$logFC,
+                       et4$table$logFC,et5$table$logFC,
                        row.names = rownames(et1$table), stringsAsFactors = F)
-names(logfc.df) <- c(df1_name,df2_name,df3_name)
+names(logfc.df) <- c(df1_name,df2_name,df3_name,df4_name,df5_name)
 head(logfc.df)
 #write.csv(logfc.df, file = "2018_07_27_Disp_N2_logFC.csv")
 ```
+#Same as previous code block except now testing for temperature differences
+```{r}
+# L2 20C disp - L2 15C disp
+et1 <- exactTest(x, pair = c(2,5), dispersion = bcv^2)
+topTags(et1, n=Inf, sort.by = "logFC")
+df1_name <- "L2.20C-L2.15C"
 
+#L4 25C disp - L4 15C disp
+et2 <- exactTest(x, pair=c(8,14), dispersion = bcv^2)
+topTags(et2, n=Inf, sort.by = "logFC")
+df2_name <- "L4.25C-L4.15C"
+
+#L4 20C disp - L4 15C disp
+et3 <- exactTest(x, pair=c(8,11), dispersion = bcv^2)
+topTags(et3, n=Inf, sort.by = "logFC")
+df3_name <- "L4.20C-L4.15C"
+
+#Generate data frame and print to csv
+logfc.df <- data.frame(et1$table$logFC,et2$table$logFC,et3$table$logFC,
+                       row.names = rownames(et1$table), stringsAsFactors = F)
+names(logfc.df) <- c(df1_name,df2_name,df3_name)
+head(logfc.df)
+#write.csv(logfc.df, file = "2018_07_31_Disp_temp_logFC.csv")
+```
 
 Alternative experiment design
 ```{r}
@@ -438,5 +472,38 @@ dge.matrix.subset <- dge.matrix[c("WBGene00194663", "WBGene00011460", "WBGene000
 dge.matrix.subset
 #write.csv(dge.matrix.subset, file = "2018_07_30_displodere_dge.csv", quote = F)
 #WBGene00015225 may be interesting - low in mock, elevated in np and 10x higher in nd
+```
+
+Using above code (see code block at line 331) I extraced a list of 26 genes that were up in three conditions - L2 20C, L4 20C, and L4 25C all versus mock treated animals
+```{r}
+deg1 <- c("WBGene00044759",
+"WBGene00013294",
+"WBGene00044379",
+"WBGene00011160",
+"WBGene00012822",
+"WBGene00022572",
+"WBGene00021964",
+"WBGene00008843",
+"WBGene00045338",
+"WBGene00022546",
+"WBGene00007813",
+"WBGene00012910",
+"WBGene00012058",
+"WBGene00022548",
+"WBGene00235271",
+"WBGene00015829",
+"WBGene00019931",
+"WBGene00021193",
+'WBGene00021744',
+'WBGene00045415',
+"WBGene00219750",
+"WBGene00235133",
+"WBGene00009077",
+"WBGene00022545",
+"WBGene00021978",
+'WBGene00009213')
+
+dge.matrix[deg1,]
+#write.csv(dge.matrix[deg1,c(1,2,4,5,7,8,10,11,13,14)], "2018_07_31_UP_ndisp_count_matrix.csv", quote = F)
 ```
 
